@@ -1,18 +1,23 @@
 # praxis-day06
 
-## Praxis - Auftrag 1: Python Demo App lokal testen
+## Praxis - Auftrag 1: Build-Artefakt mit GitHub Actions hochladen
 
 ### Ziel
 
-Du testest die vorhandene Python/Flask-Demo-App lokal. Der Code ist bereits im Repository vorhanden. Deine Aufgabe ist es, die Abhängigkeiten zu installieren, ein Python-Build-Artefakt zu erstellen, das Paket lokal zu installieren und die Flask-App im Browser zu prüfen.
+Du testest zuerst die vorhandene Python/Flask-Demo-App lokal. Danach ergänzt du die bestehende GitHub-Actions-Pipeline so, dass das erzeugte Build-Artefakt gespeichert wird. Zum Schluss lädst du das Artefakt aus GitHub Actions herunter und testest es nochmals lokal.
 
-### Vorhandene Projektstruktur
+Das Artefakt wird nur temporär im Workflow gespeichert. Es wird nicht in ein Paket-Repository wie GitHub Packages oder PyPI veröffentlicht.
+
+### Für diese Aufgabe relevante Projektstruktur
 
 ```plaintext
 praxis-day06/
 ├── app/
 │   ├── __init__.py
 │   └── main.py
+├── .github/
+│   └── workflows/
+│       └── artifact_ci.yml
 ├── setup.py
 ├── requirements.txt
 └── README.md
@@ -20,13 +25,13 @@ praxis-day06/
 
 `setup.py` enthält die Paketinformationen für die Demo-App. Damit kann das Projekt als Python-Paket gebaut und installiert werden.
 
-`app/__init__.py` markiert den Ordner `app` als Python-Paket.
-
 `app/main.py` enthält die Flask-Anwendung. Beim Start der App wird auf Port `5000` eine einfache Webseite ausgeliefert.
 
-### Auftrag
+`.github/workflows/artifact_ci.yml` enthält die Pipeline, die du ergänzen musst.
 
-1. Klone das Repository oder öffne es lokal in deiner Entwicklungsumgebung.
+## Teil 1: App lokal testen
+
+1. Öffne das Repository lokal in deiner Entwicklungsumgebung.
 
 2. Prüfe, ob Python und pip installiert sind:
 
@@ -35,9 +40,9 @@ praxis-day06/
    python -m pip --version
    ```
 
-   Falls `python` nicht funktioniert, verwende unter Windows alternativ:
+   Falls `python` unter Windows nicht funktioniert, verwende:
 
-   ```bash
+   ```powershell
    py --version
    py -m pip --version
    ```
@@ -51,48 +56,40 @@ praxis-day06/
    .\.venv\Scripts\Activate.ps1
    ```
 
-   Falls du `python` statt `py` verwendest:
+   Falls PowerShell das Aktivieren blockiert:
 
-   ```bash
-   python -m venv .venv
+   ```powershell
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   .\.venv\Scripts\Activate.ps1
    ```
 
 4. Installiere die benötigten Abhängigkeiten:
 
    ```bash
+   python -m pip install --upgrade pip setuptools wheel
    python -m pip install -r requirements.txt
+   python -m pip install build
    ```
 
-   Alternative unter Windows:
-
-   ```bash
-   py -m pip install -r requirements.txt
-   ```
+   Unter Windows mit aktivierter `.venv` verwendest du ebenfalls `python -m pip ...`. So werden die Pakete in der virtuellen Umgebung installiert.
 
 5. Erstelle lokal ein Build-Artefakt:
 
    ```bash
-   python setup.py sdist
+   python -m build
    ```
 
-   Alternative unter Windows:
+   Danach sollte ein Ordner `dist/` mit diesen Dateien vorhanden sein:
 
-   ```bash
-   py setup.py sdist
+   ```plaintext
+   flaskapp-0.1.tar.gz
+   flaskapp-0.1-py3-none-any.whl
    ```
 
-   Danach sollte ein Ordner `dist/` mit einem Paket wie `flaskapp-0.1.tar.gz` vorhanden sein.
-
-6. Installiere das gebaute Paket lokal:
+6. Installiere das lokal gebaute Paket:
 
    ```bash
    python -m pip install --force-reinstall dist/flaskapp-0.1.tar.gz
-   ```
-
-   Alternative unter Windows:
-
-   ```bash
-   py -m pip install --force-reinstall dist/flaskapp-0.1.tar.gz
    ```
 
 7. Starte die Flask-App:
@@ -113,28 +110,83 @@ praxis-day06/
    Hello, from Flask!
    ```
 
-### Ohne Container testen
+## Teil 2: Pipeline vervollständigen
 
-Du kannst die App vollständig ohne Container testen. Nur für Windows empfohlen: Verwende dafür eine virtuelle Umgebung (`.venv`), damit `run-flask` nicht aus einer kaputten globalen Python-Installation gestartet wird.
+Öffne die Datei:
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-py -m pip install --upgrade pip setuptools wheel
-py -m pip install -r requirements.txt
-py setup.py sdist
-py -m pip install --force-reinstall dist/flaskapp-0.1.tar.gz
-run-flask
+```text
+.github/workflows/artifact_ci.yml
 ```
 
-Falls PowerShell das Aktivieren blockiert, kannst du für diese Sitzung die Execution Policy lockern:
+Die Pipeline installiert Python, installiert das Build-Tooling und baut das Paket bereits mit:
 
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
+```bash
+python -m build
 ```
 
-### Fehlerbehebung: `Fatal error in launcher`
+Ergänze danach einen Schritt, der das erzeugte Build-Artefakt speichert.
+
+Der Upload-Schritt muss:
+
+- nach dem Build-Schritt ausgeführt werden
+- das Build-Artefakt mit `actions/upload-artifact` speichern
+- einen Artefakt-Namen setzen
+- den Ordner `dist/` oder dessen Inhalt hochladen
+
+Committe und pushe deine Änderung:
+
+```bash
+git status
+git add .github/workflows/artifact_ci.yml
+git commit -m "Add build artifact upload"
+git push
+```
+
+Prüfe danach in GitHub unter `Actions`, ob die Pipeline erfolgreich durchläuft.
+
+Prüfe zusätzlich, ob das Autograding-Ergebnis nach dem Push sichtbar ist und die Aufgabe als bestanden bewertet wird.
+
+## Teil 3: Artefakt herunterladen und lokal testen
+
+1. Öffne dein Repository auf GitHub.
+
+2. Gehe zu:
+
+   ```text
+   Actions
+   ```
+
+3. Öffne den erfolgreichen Workflow-Lauf von `Build & Upload Artifact`.
+
+4. Lade unten bei `Artifacts` das erzeugte Artefakt herunter.
+
+5. Entpacke die heruntergeladene ZIP-Datei lokal.
+
+6. Installiere das heruntergeladene Paket:
+
+   ```bash
+   python -m pip install --force-reinstall flaskapp-0.1.tar.gz
+   ```
+
+   Falls du das Wheel testen möchtest:
+
+   ```bash
+   python -m pip install --force-reinstall flaskapp-0.1-py3-none-any.whl
+   ```
+
+7. Starte die App erneut:
+
+   ```bash
+   run-flask
+   ```
+
+8. Öffne im Browser:
+
+   ```text
+   http://localhost:5000
+   ```
+
+### Fehlerbehebung unter Windows: `Fatal error in launcher`
 
 Wenn beim Start von `run-flask` diese Meldung erscheint:
 
@@ -142,7 +194,7 @@ Wenn beim Start von `run-flask` diese Meldung erscheint:
 Fatal error in launcher: Unable to create process using ... The system cannot find the file specified.
 ```
 
-dann wurde `run-flask.exe` mit einer Python-Installation erzeugt, die nicht mehr existiert oder nicht mehr am gleichen Pfad liegt. Das passiert häufig nach einem Python-Update oder wenn ein Paket außerhalb einer virtuellen Umgebung installiert wurde.
+dann verwendet Windows wahrscheinlich einen alten oder falschen `run-flask.exe`-Launcher.
 
 Prüfe zuerst, welches `run-flask` Windows verwendet:
 
@@ -150,60 +202,24 @@ Prüfe zuerst, welches `run-flask` Windows verwendet:
 where run-flask
 ```
 
-Wenn dort ein Pfad außerhalb des Projektordners oder außerhalb von `.venv\Scripts` erscheint, wird nicht der Projekt-Launcher verwendet. Starte dann den Launcher aus der virtuellen Umgebung direkt:
+Wenn dort ein Pfad außerhalb des Projektordners oder außerhalb von `.venv\Scripts` erscheint, starte den Launcher aus der virtuellen Umgebung direkt:
 
 ```powershell
 .\.venv\Scripts\run-flask.exe
 ```
 
-Falls diese Datei nicht existiert, wurde das Paket nicht in der virtuellen Umgebung installiert. Installiere es dann gezielt mit dem Python aus `.venv`:
+Falls diese Datei nicht existiert, installiere das Paket gezielt mit dem Python aus `.venv`:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install --force-reinstall dist/flaskapp-0.1.tar.gz
 .\.venv\Scripts\run-flask.exe
 ```
 
-Wichtig: Der Fehler entsteht nicht durch Flask selbst, sondern dadurch, dass Windows einen alten oder falschen `run-flask.exe`-Launcher findet.
-
-### Optional: Test in einem Docker-Container
-
-Du kannst das erstellte Paket auch in einem frischen Python-Container testen.
-
-1. Starte einen Container und binde den lokalen `dist`-Ordner ein:
-
-   ```bash
-   docker run -it --rm -p 5000:5000 -v "%cd%\dist:/dist" python:3.10-slim bash
-   ```
-
-   Falls du PowerShell verwendest:
-
-   ```powershell
-   docker run -it --rm -p 5000:5000 -v "${PWD}\dist:/dist" python:3.10-slim bash
-   ```
-
-2. Installiere im Container die benötigten Build-Werkzeuge und das Paket:
-
-   ```bash
-   pip install --upgrade pip setuptools wheel
-   pip install /dist/flaskapp-0.1.tar.gz
-   ```
-
-3. Starte die App im Container:
-
-   ```bash
-   run-flask
-   ```
-
-4. Oeffne im Browser:
-
-   ```text
-   http://localhost:5000
-   ```
-
 ### Erwartetes Ergebnis
 
-- Die Abhängigkeiten lassen sich installieren.
-- Mit `python setup.py sdist` wird ein Build-Artefakt im Ordner `dist/` erstellt.
-- Das Paket lässt sich aus dem `dist/`-Ordner installieren.
-- Die Flask-App startet lokal auf Port `5000`.
-- Im Browser erscheint `Hello, from Flask!`.
+- Die App läuft lokal vor der Pipeline-Anpassung.
+- Die Pipeline baut das Python-Paket erfolgreich.
+- Die Pipeline speichert den Inhalt von `dist/` als Artefakt.
+- Das Autograding-Ergebnis ist nach dem Push sichtbar und erfolgreich.
+- Das Artefakt kann aus GitHub Actions heruntergeladen werden.
+- Das heruntergeladene Paket lässt sich lokal installieren und starten.
