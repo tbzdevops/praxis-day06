@@ -1,0 +1,12 @@
+aws_region              = "us-east-1"
+project_name            = "praxis-day06-pypiserver"
+instance_type           = "t3.micro"
+pypiserver_port         = 8080
+cloud_init_path         = "../cloud-init/pypiserver.yaml"
+
+## Full open, nur für Demo-Zwecke erlaubt.
+allowed_ssh_cidr_blocks = ["0.0.0.0/0"]
+
+## Optional: SSH access without AWS EC2 Key Pair.
+## Use the public key, not the private .pem file.
+# ssh_public_key_path = "C:\\path\\to\\id_rsa.pub"

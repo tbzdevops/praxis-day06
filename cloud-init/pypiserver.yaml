@@ -1,0 +1,48 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+users:
+  - default
+  - name: ubuntu
+    groups: sudo, docker
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+%{ if ssh_authorized_key != "" ~}
+    ssh_authorized_keys:
+      - ${ssh_authorized_key}
+%{ endif ~}
+
+packages:
+  - docker.io
+  - curl
+
+write_files:
+  - path: /usr/local/bin/start-pypiserver.sh
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      mkdir -p /opt/pypiserver/packages
+
+      docker rm -f pypiserver >/dev/null 2>&1 || true
+      docker run -d \
+        --name pypiserver \
+        --restart unless-stopped \
+        -p 8080:8080 \
+        -v /opt/pypiserver/packages:/data/packages \
+        pypiserver/pypiserver:latest \
+        run -P . -a . /data/packages
+
+      echo "Waiting for pypiserver to become ready..."
+      until curl -fsS http://localhost:8080/simple/ >/dev/null 2>&1; do
+        sleep 5
+      done
+
+runcmd:
+  - systemctl enable docker
+  - systemctl start docker
+  - /usr/local/bin/start-pypiserver.sh
+
+final_message: "pypiserver cloud-init setup finished."
