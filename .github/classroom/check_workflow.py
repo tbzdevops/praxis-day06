@@ -159,6 +159,22 @@ def check_pypiserver_workflow():
             upload_index = index
             upload_run = run
 
+    uses_repository_url = (
+        "secrets.PYPISERVER_REPOSITORY_URL" in upload_run
+        or "$PYPISERVER_REPOSITORY_URL" in upload_run
+        or "${PYPISERVER_REPOSITORY_URL}" in upload_run
+    )
+    uses_username = (
+        "secrets.PYPISERVER_USERNAME" in upload_run
+        or "$PYPISERVER_USERNAME" in upload_run
+        or "${PYPISERVER_USERNAME}" in upload_run
+    )
+    uses_password = (
+        "secrets.PYPISERVER_PASSWORD" in upload_run
+        or "$PYPISERVER_PASSWORD" in upload_run
+        or "${PYPISERVER_PASSWORD}" in upload_run
+    )
+
     check(
         "Auftrag 2: Workflow publish_pypiserver.yml ist vorhanden",
         PYPISERVER_WORKFLOW.exists(),
@@ -205,16 +221,14 @@ def check_pypiserver_workflow():
 
     check(
         "Auftrag 2: Upload verwendet die pypiserver Repository URL aus Secrets",
-        upload_index is not None and "secrets.PYPISERVER_REPOSITORY_URL" in upload_run,
-        "Verwende beim twine upload das Secret PYPISERVER_REPOSITORY_URL.",
+        upload_index is not None and uses_repository_url,
+        "Verwende beim twine upload das Secret PYPISERVER_REPOSITORY_URL direkt oder über eine Environment-Variable.",
     )
 
     check(
         "Auftrag 2: Upload verwendet Benutzername und Passwort aus Secrets",
-        upload_index is not None
-        and "secrets.PYPISERVER_USERNAME" in upload_run
-        and "secrets.PYPISERVER_PASSWORD" in upload_run,
-        "Verwende beim twine upload die Secrets PYPISERVER_USERNAME und PYPISERVER_PASSWORD.",
+        upload_index is not None and uses_username and uses_password,
+        "Verwende beim twine upload die Secrets PYPISERVER_USERNAME und PYPISERVER_PASSWORD direkt oder über Environment-Variablen.",
     )
 
     check(
